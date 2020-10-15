@@ -22,6 +22,14 @@ variable "peer_share_processor_aws_account_id" {
   type = string
 }
 
+variable "kubernetes_namespace" {
+  type = string
+}
+
+variable "packet_decryption_key_kubernetes_secret" {
+  type = string
+}
+
 locals {
   resource_prefix                  = "${var.environment}-${var.data_share_processor_name}"
   ingestion_bucket_writer_role_arn = var.ingestor_google_service_account_id != "" ? aws_iam_role.ingestor_bucket_writer_role[0].arn : var.ingestor_aws_role_arn
@@ -195,16 +203,22 @@ POLICY
 }
 
 module "kubernetes" {
-  source                    = "../../modules/kubernetes/"
-  data_share_processor_name = var.data_share_processor_name
-  gcp_project               = var.gcp_project
-  environment               = var.environment
-  ingestion_bucket          = "${aws_s3_bucket.ingestion_bucket.region}/${aws_s3_bucket.ingestion_bucket.bucket}"
-  ingestion_bucket_role     = aws_iam_role.bucket_owner_role.arn
+  source                                  = "../../modules/kubernetes/"
+  data_share_processor_name               = var.data_share_processor_name
+  gcp_project                             = var.gcp_project
+  environment                             = var.environment
+  ingestion_bucket                        = "${aws_s3_bucket.ingestion_bucket.region}/${aws_s3_bucket.ingestion_bucket.bucket}"
+  ingestion_bucket_role                   = aws_iam_role.bucket_owner_role.arn
+  kubernetes_namespace                    = var.kubernetes_namespace
+  packet_decryption_key_kubernetes_secret = var.packet_decryption_key_kubernetes_secret
 }
 
 output "data_share_processor_name" {
   value = var.data_share_processor_name
+}
+
+output "kubernetes_namespace" {
+  value = var.kubernetes_namespace
 }
 
 output "specific_manifest" {
@@ -219,7 +233,7 @@ output "specific_manifest" {
       }
     }
     packet-encryption-certificates = {
-      (module.kubernetes.ingestion_packet_decryption_key) = {
+      (var.packet_decryption_key_kubernetes_secret) = {
         certificate = ""
       }
     }
